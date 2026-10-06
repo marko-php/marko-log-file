@@ -34,6 +34,8 @@ readonly class FileLoggerFactory
             formatter: $this->formatter,
             clock: $this->clock,
             rotation: $this->rotation,
+            fileMode: $this->config->fileMode(),
+            dirMode: $this->config->dirMode(),
         );
     }
 }

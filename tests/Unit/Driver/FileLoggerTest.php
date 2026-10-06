@@ -344,3 +344,92 @@ it('stamps records with the injected clock', function () {
 
     cleanupLogDir($dir);
 });
+
+it('creates new log files readable only by the owner by default', function () {
+    $dir = createTempLogDir();
+    $logger = new FileLogger(
+        path: $dir,
+        channel: 'app',
+        minimumLevel: LogLevel::Debug,
+        formatter: new LineFormatter(),
+        clock: new FakeClock('2026-01-21 09:30:15'),
+    );
+
+    $logger->info('Secret-ish message');
+    clearstatcache();
+    $mode = fileperms($dir . '/app-2026-01-21.log') & 0777;
+
+    cleanupLogDir($dir);
+
+    expect($mode)->toBe(0600);
+});
+
+it('creates a missing log directory readable only by the owner by default', function () {
+    $parent = createTempLogDir();
+    $dir = $parent . '/logs';
+    $logger = new FileLogger(
+        path: $dir,
+        channel: 'app',
+        minimumLevel: LogLevel::Debug,
+        formatter: new LineFormatter(),
+        clock: new FakeClock('2026-01-21 09:30:15'),
+    );
+
+    $logger->info('Hello');
+    clearstatcache();
+    $mode = fileperms($dir) & 0777;
+
+    cleanupLogDir($dir);
+    rmdir($parent);
+
+    expect($mode)->toBe(0700);
+});
+
+it('applies configured file and directory modes', function () {
+    $parent = createTempLogDir();
+    $dir = $parent . '/logs';
+    $logger = new FileLogger(
+        path: $dir,
+        channel: 'app',
+        minimumLevel: LogLevel::Debug,
+        formatter: new LineFormatter(),
+        clock: new FakeClock('2026-01-21 09:30:15'),
+        fileMode: 0640,
+        dirMode: 0750,
+    );
+
+    $logger->info('Hello');
+    clearstatcache();
+    $fileMode = fileperms($dir . '/app-2026-01-21.log') & 0777;
+    $dirMode = fileperms($dir) & 0777;
+
+    cleanupLogDir($dir);
+    rmdir($parent);
+
+    expect($fileMode)->toBe(0640)
+        ->and($dirMode)->toBe(0750);
+});
+
+it('does not change the mode of an existing log file', function () {
+    $dir = createTempLogDir();
+    $file = $dir . '/app-2026-01-21.log';
+    touch($file);
+    chmod($file, 0644);
+    $logger = new FileLogger(
+        path: $dir,
+        channel: 'app',
+        minimumLevel: LogLevel::Debug,
+        formatter: new LineFormatter(),
+        clock: new FakeClock('2026-01-21 09:30:15'),
+    );
+
+    $logger->info('Appended');
+    clearstatcache();
+    $mode = fileperms($file) & 0777;
+    $content = file_get_contents($file);
+
+    cleanupLogDir($dir);
+
+    expect($mode)->toBe(0644)
+        ->and($content)->toContain('Appended');
+});

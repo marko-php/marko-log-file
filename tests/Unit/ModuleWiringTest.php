@@ -22,6 +22,8 @@ it('resolves a logger that stamps and rotates on the bound clock', function () {
         'log.path' => $dir,
         'log.channel' => 'app',
         'log.level' => 'debug',
+        'log.file_mode' => 0600,
+        'log.dir_mode' => 0700,
     ]));
     $container->instance(LogFormatterInterface::class, new LineFormatter());
     $container->instance(ClockInterface::class, new FakeClock('2026-01-21 09:30:15'));
@@ -50,6 +52,8 @@ it('applies a Preference that replaces DailyRotation', function () {
         'log.path' => $dir,
         'log.channel' => 'app',
         'log.level' => 'debug',
+        'log.file_mode' => 0600,
+        'log.dir_mode' => 0700,
     ]));
     $container->instance(LogFormatterInterface::class, new LineFormatter());
     $container->instance(ClockInterface::class, new FakeClock('2026-01-21 09:30:15'));
