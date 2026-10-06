@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace Marko\Log\File\Rotation;
 
-use DateTimeImmutable;
+use Psr\Clock\ClockInterface;
 
 readonly class DailyRotation implements RotationStrategyInterface
 {
     public function __construct(
-        private ?DateTimeImmutable $now = null,
+        private ClockInterface $clock,
     ) {}
 
     public function getCurrentPath(
         string $basePath,
         string $channel,
     ): string {
-        $date = ($this->now ?? new DateTimeImmutable())->format('Y-m-d');
+        $date = $this->clock->now()->format('Y-m-d');
 
         return rtrim($basePath, '/') . "/$channel-$date.log";
     }

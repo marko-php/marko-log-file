@@ -8,13 +8,21 @@ use Marko\Log\Config\LogConfig;
 use Marko\Log\Contracts\LogFormatterInterface;
 use Marko\Log\Contracts\LoggerInterface;
 use Marko\Log\File\Driver\FileLogger;
-use Marko\Log\File\Rotation\DailyRotation;
+use Marko\Log\File\Rotation\RotationStrategyInterface;
+use Psr\Clock\ClockInterface;
 
+/**
+ * The rotation is injected rather than built here, so the container resolves
+ * it (bound to DailyRotation in module.php): it shares the bound clock, and a
+ * #[Preference] for DailyRotation applies.
+ */
 readonly class FileLoggerFactory
 {
     public function __construct(
         private LogConfig $config,
         private LogFormatterInterface $formatter,
+        private ClockInterface $clock,
+        private RotationStrategyInterface $rotation,
     ) {}
 
     public function create(): LoggerInterface
@@ -24,7 +32,8 @@ readonly class FileLoggerFactory
             channel: $this->config->channel(),
             minimumLevel: $this->config->level(),
             formatter: $this->formatter,
-            rotation: new DailyRotation(),
+            clock: $this->clock,
+            rotation: $this->rotation,
         );
     }
 }

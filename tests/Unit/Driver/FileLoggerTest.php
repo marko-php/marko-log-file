@@ -6,6 +6,7 @@ use Marko\Log\Contracts\LoggerInterface;
 use Marko\Log\File\Driver\FileLogger;
 use Marko\Log\Formatter\LineFormatter;
 use Marko\Log\LogLevel;
+use Marko\Testing\Fake\FakeClock;
 
 function createTempLogDir(): string
 {
@@ -40,6 +41,7 @@ it('implements LoggerInterface', function () {
         channel: 'test',
         minimumLevel: LogLevel::Debug,
         formatter: new LineFormatter(),
+        clock: new FakeClock(),
     );
 
     expect($logger)->toBeInstanceOf(LoggerInterface::class);
@@ -54,6 +56,7 @@ it('writes debug log message', function () {
         channel: 'test',
         minimumLevel: LogLevel::Debug,
         formatter: new LineFormatter(),
+        clock: new FakeClock(),
     );
 
     $logger->debug('Debug message');
@@ -77,6 +80,7 @@ it('writes info log message', function () {
         channel: 'app',
         minimumLevel: LogLevel::Debug,
         formatter: new LineFormatter(),
+        clock: new FakeClock(),
     );
 
     $logger->info('Info message');
@@ -97,6 +101,7 @@ it('writes error log message', function () {
         channel: 'app',
         minimumLevel: LogLevel::Debug,
         formatter: new LineFormatter(),
+        clock: new FakeClock(),
     );
 
     $logger->error('Error occurred');
@@ -117,6 +122,7 @@ it('writes all log levels', function () {
         channel: 'app',
         minimumLevel: LogLevel::Debug,
         formatter: new LineFormatter(),
+        clock: new FakeClock(),
     );
 
     $logger->emergency('Emergency');
@@ -150,6 +156,7 @@ it('respects minimum log level threshold', function () {
         channel: 'app',
         minimumLevel: LogLevel::Warning,
         formatter: new LineFormatter(),
+        clock: new FakeClock(),
     );
 
     $logger->debug('Should not appear');
@@ -177,6 +184,7 @@ it('includes context in log output', function () {
         channel: 'app',
         minimumLevel: LogLevel::Debug,
         formatter: new LineFormatter(),
+        clock: new FakeClock(),
     );
 
     $logger->info('User action', ['user_id' => 42, 'action' => 'login']);
@@ -197,6 +205,7 @@ it('interpolates placeholders in message', function () {
         channel: 'app',
         minimumLevel: LogLevel::Debug,
         formatter: new LineFormatter(),
+        clock: new FakeClock(),
     );
 
     $logger->info('User {name} logged in', ['name' => 'John']);
@@ -219,6 +228,7 @@ it('creates log directory if it does not exist', function () {
         channel: 'app',
         minimumLevel: LogLevel::Debug,
         formatter: new LineFormatter(),
+        clock: new FakeClock(),
     );
 
     $logger->info('Test message');
@@ -235,6 +245,7 @@ it('uses daily rotation by default', function () {
         channel: 'app',
         minimumLevel: LogLevel::Debug,
         formatter: new LineFormatter(),
+        clock: new FakeClock(),
     );
 
     $logger->info('Test message');
@@ -255,6 +266,7 @@ it('appends to existing log file', function () {
         channel: 'app',
         minimumLevel: LogLevel::Debug,
         formatter: new LineFormatter(),
+        clock: new FakeClock(),
     );
 
     $logger->info('First message');
@@ -278,6 +290,7 @@ it('uses specified channel in log output', function () {
         channel: 'api',
         minimumLevel: LogLevel::Debug,
         formatter: new LineFormatter(),
+        clock: new FakeClock(),
     );
 
     $logger->info('API request');
@@ -297,6 +310,7 @@ it('uses log method with LogLevel enum', function () {
         channel: 'app',
         minimumLevel: LogLevel::Debug,
         formatter: new LineFormatter(),
+        clock: new FakeClock(),
     );
 
     $logger->log(LogLevel::Warning, 'Warning via log method');
@@ -306,6 +320,27 @@ it('uses log method with LogLevel enum', function () {
 
     expect($content)->toContain('WARNING')
         ->and($content)->toContain('Warning via log method');
+
+    cleanupLogDir($dir);
+});
+
+it('stamps records with the injected clock', function () {
+    $dir = createTempLogDir();
+    $clock = new FakeClock('2026-01-21 09:30:15');
+    $logger = new FileLogger(
+        path: $dir,
+        channel: 'app',
+        minimumLevel: LogLevel::Debug,
+        formatter: new LineFormatter(),
+        clock: $clock,
+    );
+
+    $logger->info('First');
+    $clock->travel('+1 day');
+    $logger->info('Second');
+
+    expect(file_get_contents($dir . '/app-2026-01-21.log'))->toContain('[2026-01-21 09:30:15] app.INFO: First')
+        ->and(file_get_contents($dir . '/app-2026-01-22.log'))->toContain('[2026-01-22 09:30:15] app.INFO: Second');
 
     cleanupLogDir($dir);
 });

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Marko\Log\File\Driver;
 
-use DateTimeImmutable;
 use Marko\Log\Contracts\LogFormatterInterface;
 use Marko\Log\Contracts\LoggerInterface;
 use Marko\Log\Exceptions\LogWriteException;
@@ -12,16 +11,25 @@ use Marko\Log\File\Rotation\DailyRotation;
 use Marko\Log\File\Rotation\RotationStrategyInterface;
 use Marko\Log\LogLevel;
 use Marko\Log\LogRecord;
+use Psr\Clock\ClockInterface;
 
 readonly class FileLogger implements LoggerInterface
 {
+    private RotationStrategyInterface $rotation;
+
+    /**
+     * Without a rotation strategy, files rotate daily on the same clock that stamps the records.
+     */
     public function __construct(
         private string $path,
         private string $channel,
         private LogLevel $minimumLevel,
         private LogFormatterInterface $formatter,
-        private RotationStrategyInterface $rotation = new DailyRotation(),
-    ) {}
+        private ClockInterface $clock,
+        ?RotationStrategyInterface $rotation = null,
+    ) {
+        $this->rotation = $rotation ?? new DailyRotation($this->clock);
+    }
 
     public function emergency(
         string $message,
@@ -96,7 +104,7 @@ readonly class FileLogger implements LoggerInterface
             level: $level,
             message: $message,
             context: $context,
-            datetime: new DateTimeImmutable(),
+            datetime: $this->clock->now(),
             channel: $this->channel,
         );
 

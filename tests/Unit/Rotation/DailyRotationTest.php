@@ -4,40 +4,38 @@ declare(strict_types=1);
 
 use Marko\Log\File\Rotation\DailyRotation;
 use Marko\Log\File\Rotation\RotationStrategyInterface;
+use Marko\Testing\Fake\FakeClock;
 
 it('implements RotationStrategyInterface', function () {
-    $rotation = new DailyRotation();
+    $rotation = new DailyRotation(new FakeClock());
 
     expect($rotation)->toBeInstanceOf(RotationStrategyInterface::class);
 });
 
-it('generates path with current date', function () {
-    $now = new DateTimeImmutable('2026-01-21');
-    $rotation = new DailyRotation($now);
+it('names the log file from the injected clock\'s date', function () {
+    $rotation = new DailyRotation(new FakeClock('2026-01-21 09:30:00'));
 
     $path = $rotation->getCurrentPath('/var/log', 'app');
 
     expect($path)->toBe('/var/log/app-2026-01-21.log');
 });
 
-it('generates different paths for different dates', function () {
-    $day1 = new DateTimeImmutable('2026-01-21');
-    $day2 = new DateTimeImmutable('2026-01-22');
+it('rolls over to a new file when the clock crosses midnight', function () {
+    $clock = new FakeClock('2026-01-21 23:59:59');
+    $rotation = new DailyRotation($clock);
 
-    $rotation1 = new DailyRotation($day1);
-    $rotation2 = new DailyRotation($day2);
-
-    $path1 = $rotation1->getCurrentPath('/var/log', 'app');
-    $path2 = $rotation2->getCurrentPath('/var/log', 'app');
+    $path1 = $rotation->getCurrentPath('/var/log', 'app');
+    $clock->travel('+1 second');
+    $path2 = $rotation->getCurrentPath('/var/log', 'app');
 
     expect($path1)->toBe('/var/log/app-2026-01-21.log')
         ->and($path2)->toBe('/var/log/app-2026-01-22.log')
-        ->and($path1)->not->toBe($path2);
+        ->and($rotation->needsRotation($path1))->toBeTrue()
+        ->and($rotation->needsRotation($path2))->toBeFalse();
 });
 
 it('handles trailing slash in base path', function () {
-    $now = new DateTimeImmutable('2026-01-21');
-    $rotation = new DailyRotation($now);
+    $rotation = new DailyRotation(new FakeClock('2026-01-21'));
 
     $path = $rotation->getCurrentPath('/var/log/', 'app');
 
@@ -45,8 +43,7 @@ it('handles trailing slash in base path', function () {
 });
 
 it('uses different channel names', function () {
-    $now = new DateTimeImmutable('2026-01-21');
-    $rotation = new DailyRotation($now);
+    $rotation = new DailyRotation(new FakeClock('2026-01-21'));
 
     $appPath = $rotation->getCurrentPath('/var/log', 'app');
     $apiPath = $rotation->getCurrentPath('/var/log', 'api');
@@ -56,8 +53,7 @@ it('uses different channel names', function () {
 });
 
 it('indicates no rotation needed for current date file', function () {
-    $now = new DateTimeImmutable('2026-01-21');
-    $rotation = new DailyRotation($now);
+    $rotation = new DailyRotation(new FakeClock('2026-01-21'));
 
     $currentPath = $rotation->getCurrentPath('/var/log', 'app');
 
@@ -65,8 +61,7 @@ it('indicates no rotation needed for current date file', function () {
 });
 
 it('indicates rotation needed for previous date file', function () {
-    $now = new DateTimeImmutable('2026-01-22');
-    $rotation = new DailyRotation($now);
+    $rotation = new DailyRotation(new FakeClock('2026-01-22'));
 
     $oldPath = '/var/log/app-2026-01-21.log';
 
@@ -74,7 +69,7 @@ it('indicates rotation needed for previous date file', function () {
 });
 
 it('handles files without date pattern', function () {
-    $rotation = new DailyRotation();
+    $rotation = new DailyRotation(new FakeClock());
 
     expect($rotation->needsRotation('/var/log/app.log'))->toBeFalse();
 });
